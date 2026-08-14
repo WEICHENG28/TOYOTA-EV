@@ -5,8 +5,14 @@
 *.csv
 *.xlsx
 *.xls
-CDP*
 *品牌調查*
+# 原本寫 CDP*，但 Windows 的 git 忽略比對不分大小寫，
+# 連 analysis/cdp_profile.py 都一起擋掉了。改成只鎖資料檔副檔名。
+*CDP*.csv
+*CDP*.xlsx
+*CDP*.xls
+*CDP*.json
+!analysis/output/stats.json
 
 # ============================================
 # 影音素材 — GitHub 單檔上限 100MB，影片放雲端就好

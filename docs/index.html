@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>轉電劇場 EV Drama Studio｜概念原型</title>
+<meta name="description" content="2026 和泰 AI 黑客松 — 智能轉型：AI 助攻油轉電 TOYOTA EV 新生活。AI 短劇 × 角色化 AI 顧問的油轉電決策旅程，可互動概念原型。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">劇</div>
+    <div>
+      <div class="brand-name">轉電劇場 EV Drama Studio</div>
+      <div class="brand-sub">2026 和泰 AI 黑客松｜隊伍：請下一隊上場</div>
+    </div>
+  </div>
+  <nav class="acts" id="acts">
+    <button class="act-tab active" data-act="0"><span class="n">01</span>AI 短劇</button>
+    <button class="act-tab" data-act="1"><span class="n">02</span>角色顧問</button>
+    <button class="act-tab" data-act="2"><span class="n">03</span>數位分身</button>
+    <button class="act-tab" data-act="3"><span class="n">04</span>業務交接單</button>
+  </nav>
+  <button class="ghost-btn" id="btnKb">知識庫</button>
+  <button class="ghost-btn" id="btnAssume">計算假設</button>
+</header>
+
+<div id="boot"></div>
+
+<main class="layout" id="app" hidden>
+  <div>
+
+    <!-- ============ 第一幕 ============ -->
+    <section class="act active" data-act="0">
+      <div class="act-head">
+        <span class="act-kicker">第一幕・觸及層</span>
+        <h2>AI 短劇工廠</h2>
+        <p>把市調前五大顧慮直接寫成戲劇衝突，在社群端讓「不想被推銷的人」變成「想知道結局的人」。
+           劇末的互動選擇，就是我們拿到的第一個零方數據。</p>
+      </div>
+
+      <div class="reel-wrap">
+        <div class="phone">
+          <div class="seg-bar" id="segs"></div>
+          <div class="reel-meta"><span class="dot"></span> EV Drama Studio · EP1 <span style="margin-left:auto" id="reelIdx"></span></div>
+          <div class="reel-stage">
+            <div class="reel-scene" id="reelScene"></div>
+            <div class="reel-speaker" id="reelSpeaker"></div>
+            <div class="reel-line" id="reelLine"></div>
+            <div class="reel-note" id="reelNote"></div>
+          </div>
+          <div class="reel-side">
+            <div><span>♥</span>12.4k</div>
+            <div><span>💬</span>836</div>
+            <div><span>↗</span>2.1k</div>
+          </div>
+          <div class="reel-hook" id="reelHook">
+            <h4 id="hookQ"></h4>
+            <div id="hookChoices"></div>
+          </div>
+        </div>
+
+        <div class="ep-info">
+          <div class="panel">
+            <div class="card-title"><span class="ic">▍</span><span id="epTitle"></span></div>
+            <p style="font-size:12.5px;color:var(--muted);margin:0">對應顧慮：<span id="epConcern"></span></p>
+            <ol class="ep-frames" id="epFrames"></ol>
+            <div class="reel-ctrl">
+              <button class="ghost-btn" id="btnReplay">↺ 重播</button>
+              <button class="ghost-btn" id="btnSkip">跳至劇末選擇 ⇢</button>
+            </div>
+          </div>
+          <p class="scope-note" style="padding:0 4px">
+            初賽階段以文字分鏡呈現劇本結構與鉤子設計；決賽版將以文生影片模型與 TTS 產製實際影音，
+            單集可衍生 5–8 個變體供多臂拉霸投放測試。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 第二幕 ============ -->
+    <section class="act" data-act="1">
+      <div class="act-head">
+        <span class="act-kicker">第二幕・轉化層</span>
+        <h2>角色即顧問</h2>
+        <p>你在 IG 上認識的阿豪，點進官網後是同一個阿豪繼續跟你說話。切換人設可以看到同一組事實的三種說法——
+           相同知識庫、相同數字，不同口吻。</p>
+      </div>
+
+      <div class="chat-shell">
+        <div class="persona-pick">
+          <div class="hint">切換人設<br>（相同事實，不同說法）</div>
+          <div id="personaList"></div>
+          <div class="hint" style="margin-top:6px;line-height:1.6">
+            回答範圍限定於知識庫，<br>超出範圍一律拒答。
+          </div>
+        </div>
+
+        <div class="chat-box">
+          <div class="chat-log" id="chatLog"></div>
+          <div class="chat-foot">
+            <div class="quicks" id="quicks"></div>
+            <form class="chat-input" id="chatForm">
+              <input id="chatInput" placeholder="也可以直接問我任何問題…" autocomplete="off">
+              <button class="send" type="submit">送出</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 第三幕 ============ -->
+    <section class="act" data-act="2">
+      <div class="act-head">
+        <span class="act-kicker">第三幕・決策層</span>
+        <h2>數位分身試駕</h2>
+        <p>用你自己的用車習慣，模擬「如果去年開的是 bZ4X」。
+           所有數字由確定性規則引擎計算，非 LLM 生成——每一個常數都可以在「計算假設」中逐項查核。</p>
+      </div>
+
+      <div class="panel">
+        <div class="form-grid">
+          <div class="field">
+            <label>① 你現在開的車</label>
+            <select id="fModel"></select>
+          </div>
+          <div class="field">
+            <label>② 每天大概開多遠</label>
+            <div class="val"><span id="fKmVal">40</span><small>公里 / 天</small></div>
+            <input type="range" id="fKm" min="10" max="120" step="5" value="40">
+          </div>
+          <div class="field">
+            <label>③ 有沒有自宅／社區充電</label>
+            <div class="toggle" id="fHome">
+              <button data-v="1" class="on">有，可夜間充電</button>
+              <button data-v="0">沒有</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>④ 一年跑幾次長途</label>
+            <div class="val"><span id="fTripVal">2</span><small>次 / 年</small></div>
+            <input type="range" id="fTrip" min="0" max="12" step="1" value="2">
+          </div>
+          <div class="field">
+            <label>⑤ 長途通常去哪</label>
+            <select id="fDest"></select>
+          </div>
+        </div>
+        <button class="cta" id="btnSim">產生我的模擬報告 →</button>
+      </div>
+
+      <div class="report" id="report">
+        <div class="report-grid" style="margin-bottom:16px">
+          <div class="panel">
+            <div class="card-title"><span class="ic">▍</span>三年營運持有成本差額</div>
+            <div class="big-num" id="saveNum"></div>
+            <div style="font-size:12.5px;color:var(--muted)" id="savePct"></div>
+            <div class="scope-note" id="scopeNote"></div>
+          </div>
+          <div class="panel" style="grid-column:span 2">
+            <div class="card-title"><span class="ic">▍</span>三年成本結構對照</div>
+            <div id="chart"></div>
+          </div>
+        </div>
+
+        <div class="report-grid">
+          <div class="panel">
+            <div class="card-title"><span class="ic">▍</span>你的充電行事曆</div>
+            <div class="wk" id="wkGrid"></div>
+            <p style="font-size:12.5px;color:var(--muted);margin:13px 0 0" id="wkVerdict"></p>
+          </div>
+          <div class="panel">
+            <div class="card-title"><span class="ic">▍</span>長途劇本</div>
+            <div class="trip-line">
+              <span class="pt"></span><span class="bar"></span><span class="pt" style="background:var(--green)"></span>
+            </div>
+            <div style="display:flex;justify-content:space-between" class="lb">
+              <span style="font-size:11.5px;color:var(--muted)">出發・滿電</span>
+              <span style="font-size:11.5px;color:var(--muted)" id="tripDest"></span>
+            </div>
+            <p style="font-size:12.5px;color:var(--muted);margin:13px 0 0" id="tripVerdict"></p>
+          </div>
+          <div class="panel">
+            <div class="card-title"><span class="ic">▍</span>焦慮消除卡</div>
+            <div class="relief" id="relief"></div>
+          </div>
+        </div>
+
+        <button class="cta" id="btnHandoff" style="background:var(--panel-2);border:1px solid var(--line)">
+          產生業務交接單 →
+        </button>
+      </div>
+    </section>
+
+    <!-- ============ 第四幕 ============ -->
+    <section class="act" data-act="3">
+      <div class="act-head">
+        <span class="act-kicker">第四幕・線下銜接</span>
+        <h2>業務交接單</h2>
+        <p>AI 不取代業務，AI 讓業務第一句話就說在點上。
+           以下內容全數由前三幕累積的互動軌跡自動生成，不需要使用者填任何表單。</p>
+      </div>
+      <div class="sheet" id="sheet"></div>
+    </section>
+
+  </div>
+
+  <!-- ============ 右側觀測面板 ============ -->
+  <aside class="panel observer">
+    <h4>AI 觀測面板</h4>
+    <div class="ob-row">
+      <div class="k">零方數據・主導顧慮</div>
+      <div class="v empty" id="obConcern">尚未取得</div>
+    </div>
+    <div class="ob-row">
+      <div class="k">短劇觀看進度</div>
+      <div class="v" id="obWatch">0 / 0</div>
+      <div class="meter"><i id="obWatchBar" style="width:0"></i></div>
+    </div>
+    <div class="ob-row">
+      <div class="k">情緒強度（顧慮急迫性）</div>
+      <div class="v" id="obEmo">—</div>
+      <div class="meter"><i id="obEmoBar" style="width:0"></i></div>
+    </div>
+    <div class="ob-row">
+      <div class="k">已辨識顧慮標籤</div>
+      <div class="tags" id="obTags"><span class="v empty" style="font-size:12px">尚未取得</span></div>
+    </div>
+    <div class="ob-row">
+      <div class="k">對話輪次 / 引用來源數</div>
+      <div class="v" id="obTurns">0 / 0</div>
+    </div>
+    <div class="ob-row">
+      <div class="k">用車輪廓</div>
+      <div class="v empty" id="obProfile">尚未試算</div>
+    </div>
+    <div class="ob-note">
+      本面板呈現系統在使用者旅程中累積的資料資產。
+      每一格都對應簡報 P11 顧客旅程表中的「產出數據」欄位——這些標籤即為資料飛輪的燃料。
+    </div>
+  </aside>
+</main>
+
+<!-- ============ 抽屜 ============ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h3 id="drawerTitle"></h3>
+    <button class="close-x" id="drawerClose">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<script src="js/tco.js"></script>
+<script src="js/rag.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
