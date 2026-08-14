@@ -1,5 +1,5 @@
 /**
- * TCO 規則引擎 — 轉電劇場 EV Drama Studio
+ * TCO 規則引擎 — AI 劇場 EV Drama Studio
  *
  * 設計原則（對應簡報 P12）：「算數字的用確定性演算法，說人話的用生成式 AI。」
  * 本檔案不含任何 LLM 呼叫。所有輸出皆為純函式計算，同樣輸入必得同樣結果，
@@ -21,11 +21,18 @@ const TCO = (() => {
     elecHomePerKwh:  { value: 2.1,  tag: '假設', label: '家用離峰電價每度', unit: '元' },
     elecPublicPerKwh:{ value: 10.0, tag: '假設', label: '公共快充每度', unit: '元' },
 
-    // --- bZ4X 規格 ---
-    battery:      { value: 71.4, tag: '規格', label: '電池容量', unit: 'kWh' },
-    kmPerKwh:     { value: 5.5,  tag: '規格', label: '實測能耗', unit: 'km/kWh' },
-    dcAvgKw:      { value: 100,  tag: '規格', label: '快充平均功率', unit: 'kW' },
-    acKw:         { value: 6.6,  tag: '規格', label: '家用交流充電功率', unit: 'kW' },
+    // --- bZ4X 規格（2026 年式型錄「主要規格表」與「充電配套」頁）---
+    battery:      { value: 74.7, tag: '規格', label: '電池容量', unit: 'kWh' },
+    kmPerKwh:     { value: 6.7,  tag: '規格', label: '用電效率（型錄公告值）', unit: 'km/kWh' },
+    // 型錄自身註記：「實際道路行駛時因受天候、路況、載重、使用空調系統、駕駛習慣及
+    // 車輛維護保養等因素影響，其續航里程實際值可能與測試值有所差異。」
+    // 公告值為實驗室測得，直接拿來推算里程會高估，故折算為道路實用值再計算。
+    realWorldFactor: { value: 0.8, tag: '假設', label: '公告值折算實際道路係數', unit: '' },
+    // 型錄：DC 最大 160 kW（400A），由低電量警示亮起充至 80% 約 28 分鐘。
+    // 以 10%→80% 計＝74.7 × 0.7 ≈ 52.3 kWh ÷ 28 分鐘 ≈ 112 kW 平均功率。
+    dcAvgKw:      { value: 112,  tag: '規格', label: '快充平均功率（由型錄推導）', unit: 'kW' },
+    // 型錄：AC 11 kW，0→100% 約 7 小時（74.7 ÷ 7 ≈ 10.7 kW，與標示相符）
+    acKw:         { value: 11,   tag: '規格', label: '家用交流充電功率', unit: 'kW' },
 
     // --- 保養 ---
     gasMaintAnnual: { value: 12000, tag: '假設', label: '燃油車年均定保支出', unit: '元' },
@@ -68,6 +75,12 @@ const TCO = (() => {
     kenting:  { label: '墾丁',      km: 420 },
   };
 
+  /**
+   * 實際道路能耗 = 型錄公告用電效率 × 折算係數。
+   * 所有里程與耗電計算一律使用此值，不直接使用公告值，避免高估續航與低估電費。
+   */
+  const effKmPerKwh = () => C.kmPerKwh.value * C.realWorldFactor.value;
+
   const annualTaxOf = (cc) => {
     const row = TAX_BY_CC.find((r) => cc <= r.max) || TAX_BY_CC[TAX_BY_CC.length - 1];
     return row.licence + row.fuel;
@@ -106,7 +119,7 @@ const TCO = (() => {
       tax:    annualTaxOf(v.cc),
     };
     const ev = {
-      energy: (annualKm / C.kmPerKwh.value) * elecRate,
+      energy: (annualKm / effKmPerKwh()) * elecRate,
       maint:  C.gasMaintAnnual.value * C.evMaintRatio.value,
       // 電動車目前依主管機關公告免徵牌照稅與燃料費，適用年度須逐年確認。[法規]
       tax:    0,
@@ -134,7 +147,7 @@ const TCO = (() => {
 
   /** 充電行事曆：把「一週充幾次」算清楚，而不是問「附近有幾支樁」。 */
   function chargingCalendar(input) {
-    const sessionKm = C.battery.value * C.dcWindow.value * C.kmPerKwh.value; // 15%→80%
+    const sessionKm = C.battery.value * C.dcWindow.value * effKmPerKwh(); // 15%→80%
     const weeklyKm = input.dailyKm * 7;
     const sessions = weeklyKm / sessionKm;
     const kwhPerSession = C.battery.value * C.dcWindow.value;
@@ -166,9 +179,9 @@ const TCO = (() => {
   /** 長途劇本：把「會不會卡住」換算成「要停幾次、停多久」。 */
   function longTripPlan(input) {
     const dest = DESTINATIONS[input.destination] || DESTINATIONS.tainan;
-    const usableRangeKm = C.battery.value * (1 - C.reserveSoc.value) * C.kmPerKwh.value;
+    const usableRangeKm = C.battery.value * (1 - C.reserveSoc.value) * effKmPerKwh();
     const oneWay = dest.km;
-    const kwhNeeded = oneWay / C.kmPerKwh.value;
+    const kwhNeeded = oneWay / effKmPerKwh();
     const arrivalSoc = (1 - kwhNeeded / C.battery.value) * 100;
 
     let stops = 0, stopMinutes = 0, deficitKwh = 0;

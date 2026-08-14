@@ -1,5 +1,5 @@
 /**
- * 轉電劇場 EV Drama Studio — 原型主程式
+ * AI 劇場 EV Drama Studio — 原型主程式
  *
  * 三幕之間共用同一份 state，這是本方案最關鍵的體驗設計：
  * 使用者在第一幕點的選擇，會決定第二幕的開場白、第三幕的焦慮消除卡、第四幕的建議話術。
@@ -227,7 +227,7 @@
     const hits = RAG.retrieve(query, 3);
     const top = hits[0];
 
-    if (!top || top.score < 3) {
+    if (!RAG.isAnswerable(hits)) {
       pushBot('這個問題超出我手上的資料範圍了，我不想隨口給你一個不確定的答案。'
             + '要不要我幫你轉給展間的業務？他手上有最新的型錄跟報價。', [], { refuse: true });
       state.turns++;
@@ -389,7 +389,7 @@
       <div class="sheet-top">
         <div>
           <h3>油轉電顧慮交接單</h3>
-          <div style="font-size:12px;color:#6b7480">系統自動生成・轉電劇場 EV Drama Studio</div>
+          <div style="font-size:12px;color:#6b7480">系統自動生成・AI 劇場 EV Drama Studio</div>
         </div>
         <span class="tag">${esc(id)}</span>
       </div>

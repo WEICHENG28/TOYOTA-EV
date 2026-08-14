@@ -1,5 +1,5 @@
 /**
- * 檢索層 — 轉電劇場 EV Drama Studio
+ * 檢索層 — AI 劇場 EV Drama Studio
  *
  * 角色顧問的每一句回答都必須綁定知識庫來源，這一層負責「找出該引用哪幾則」。
  *
@@ -89,17 +89,39 @@ const RAG = (() => {
       return { chunk: CHUNKS.find((c) => c.id === doc.id), score, matched };
     });
 
+    // 覆蓋率＝查詢詞被整個知識庫命中的比例（對語料整體，不是對單一 chunk）。
+    // 單看分數不足以判斷該不該回答：「你們有賣機車嗎」會因為「有賣」命中而拿到不低的
+    // 分數，但「機車」完全不在語料裡。分數負責排序，覆蓋率負責守邊界，兩者並用。
+    const known = qTerms.filter((t) => DF.has(t)).length;
+    const coverage = Number((known / Math.max(1, qTerms.length)).toFixed(3));
+
     return scored
       .filter((r) => r.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, topK)
-      .map((r) => ({ ...r, score: Number(r.score.toFixed(3)) }));
+      .map((r) => ({ ...r, score: Number(r.score.toFixed(3)), coverage }));
+  }
+
+  /**
+   * 是否有足夠依據回答。門檻由 tools/rag_eval.js 的 24 題標註集校準：
+   *   職域內 16 題：分數最低 6.43、覆蓋率最低 0.59
+   *   離題   8 題：分數最高 6.46、覆蓋率最高 0.50
+   * 分數本身無法分離兩者（6.43 < 6.46），覆蓋率才是有效的判別條件。
+   *
+   * 覆蓋率門檻 0.55 落在 0.50 與 0.59 之間，間距不寬。詞彙檢索的邊界本來就只能做到
+   * 這個程度；決賽版改用向量檢索後，語意相似度可取代這組經驗門檻。
+   * 修改知識庫後務必重跑 rag_eval.js 確認門檻仍成立。
+   */
+  function isAnswerable(hits) {
+    const top = hits[0];
+    if (!top) return false;
+    return top.score >= 6 && top.coverage >= 0.55;
   }
 
   const getById = (id) => CHUNKS.find((c) => c.id === id) || null;
   const all = () => CHUNKS;
 
-  return { index, retrieve, getById, all, tokenize };
+  return { index, retrieve, isAnswerable, getById, all, tokenize };
 })();
 
 if (typeof module !== 'undefined') module.exports = RAG;

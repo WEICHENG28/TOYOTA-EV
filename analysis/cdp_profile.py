@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-CDP 車主輪廓分析 — 轉電劇場 EV Drama Studio
+CDP 車主輪廓分析 — AI 劇場 EV Drama Studio
 
 用途：重現初賽簡報中所有引用 `[資料]` 的 CDP 數字，並輸出圖表與統計 JSON。
 
