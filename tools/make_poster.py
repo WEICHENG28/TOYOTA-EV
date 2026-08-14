@@ -113,14 +113,45 @@ def placeholder_bg(W, H):
     return Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGB")
 
 
-def cover_crop(im: Image.Image, W: int, H: int) -> Image.Image:
-    """等比放大後置中裁切，填滿畫布不變形。"""
+def cover_crop(im: Image.Image, W: int, H: int,
+               fx: float = 0.5, fy: float = 0.35, zoom: float = 1.0) -> Image.Image:
+    """
+    等比放大後裁切，填滿畫布不變形。
+    橫幅素材（車輛型錄多為寬幅）裁成直式時，主體位置差一點就會被切掉，
+    故開放 fx / fy 指定裁切錨點，zoom 再往主體推近。
+    """
     im = im.convert("RGB")
-    s = max(W / im.width, H / im.height)
+    s = max(W / im.width, H / im.height) * zoom
     im = im.resize((int(im.width * s + 1), int(im.height * s + 1)), Image.LANCZOS)
-    left = (im.width - W) // 2
-    top = int((im.height - H) * 0.35)          # 略偏上，人臉通常在上三分之一
+    left = int((im.width - W) * fx)
+    top = int((im.height - H) * fy)
+    left = max(0, min(left, im.width - W))
+    top = max(0, min(top, im.height - H))
     return im.crop((left, top, left + W, top + H))
+
+
+def grade_warm(im: Image.Image, amount: float = 1.0) -> Image.Image:
+    """
+    黃昏色調。型錄照多為冷色（海、天空），與金色標題並置會打架，
+    故把中間調往暖色推、壓一點藍，並加暈影集中視線。
+    """
+    a = np.asarray(im).astype(np.float32) / 255.0
+    lum = a @ np.array([0.299, 0.587, 0.114], dtype=np.float32)
+    warm = np.stack([
+        np.clip(a[..., 0] * (1 + 0.16 * amount) + 0.045 * amount, 0, 1),
+        np.clip(a[..., 1] * (1 + 0.04 * amount) + 0.012 * amount, 0, 1),
+        np.clip(a[..., 2] * (1 - 0.14 * amount) - 0.012 * amount, 0, 1),
+    ], axis=-1)
+    # highlights 保留原色，避免車身白牌與天空過曝變橘
+    k = np.clip((lum - 0.72) / 0.28, 0, 1)[..., None]
+    out = warm * (1 - k) + a * k
+
+    H, W = out.shape[:2]
+    yy = np.linspace(-1, 1, H)[:, None]
+    xx = np.linspace(-1, 1, W)[None, :]
+    vig = 1 - 0.42 * amount * np.clip((xx ** 2 + yy ** 2) / 2.0, 0, 1) ** 1.1
+    out = out * vig[..., None]
+    return Image.fromarray((np.clip(out, 0, 1) * 255).astype(np.uint8), "RGB")
 
 
 def scrim(img: Image.Image, start: float, strength: float = 0.94):
@@ -133,8 +164,47 @@ def scrim(img: Image.Image, start: float, strength: float = 0.94):
     return Image.alpha_composite(img.convert("RGBA"), Image.fromarray(layer, "RGBA")).convert("RGB")
 
 
-def build(W: int, H: int, photo: Path | None) -> Image.Image:
-    base = cover_crop(Image.open(photo), W, H) if photo else placeholder_bg(W, H)
+def fit_width(src: Image.Image, W: int, H: int, top_frac: float, zoom: float) -> Image.Image:
+    """
+    橫幅素材放進直式海報的正解：
+    直接 cover 裁切會把車頭車尾切掉，縮到剛好又會在上下留出生硬的空白。
+    故以「同一張照片的模糊放大版」當背景填滿畫面，再把完整照片疊在上面，
+    邊緣用羽化融進背景 — 這是電影海報處理寬幅劇照的標準手法。
+    """
+    backdrop = cover_crop(src, W, H, 0.5, 0.5, 1.25)
+    backdrop = backdrop.filter(ImageFilter.GaussianBlur(int(W * 0.035)))
+    backdrop = Image.blend(backdrop, Image.new("RGB", (W, H), (14, 11, 9)), 0.42)
+
+    fw = int(W * zoom)
+    fh = int(fw * src.height / src.width)
+    fg = src.convert("RGB").resize((fw, fh), Image.LANCZOS)
+
+    # 上下邊緣羽化，避免出現一條硬邊
+    feather = max(8, int(fh * 0.10))
+    mask = Image.new("L", (fw, fh), 255)
+    md = ImageDraw.Draw(mask)
+    for i in range(feather):
+        v = int(255 * (i / feather))
+        md.line([(0, i), (fw, i)], fill=v)
+        md.line([(0, fh - 1 - i), (fw, fh - 1 - i)], fill=v)
+
+    out = backdrop.copy()
+    out.paste(fg, ((W - fw) // 2, int(H * top_frac)), mask)
+    return out
+
+
+def build(W: int, H: int, photo: Path | None, fx=0.5, fy=0.35,
+          zoom=1.0, warm=1.0, fit="cover", top_frac=0.16) -> Image.Image:
+    if photo:
+        src = Image.open(photo)
+        if fit == "width":
+            base = fit_width(src, W, H, top_frac, zoom)
+        else:
+            base = cover_crop(src, W, H, fx, fy, zoom)
+        if warm > 0:
+            base = grade_warm(base, warm)
+    else:
+        base = placeholder_bg(W, H)
     base = scrim(base, 0.44)
     # 頂部也輕壓一層，讓頻道標示看得清楚
     base = base.rotate(180).transpose(Image.ROTATE_180) if False else base
@@ -216,6 +286,13 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="產生 EP1 短劇海報（直式）")
     ap.add_argument("--photo", type=Path, default=None, help="攝影底圖；未提供則用漸層佔位")
     ap.add_argument("--scale", type=float, default=1.0)
+    ap.add_argument("--fx", type=float, default=0.5, help="裁切水平錨點 0–1")
+    ap.add_argument("--fy", type=float, default=0.35, help="裁切垂直錨點 0–1")
+    ap.add_argument("--zoom", type=float, default=1.0, help="往主體推近的倍率")
+    ap.add_argument("--warm", type=float, default=1.0, help="黃昏色調強度，0 為不調色")
+    ap.add_argument("--fit", default="cover", choices=["cover", "width"],
+                    help="cover=裁切填滿（直式素材）；width=完整照片疊在模糊底上（橫幅素材）")
+    ap.add_argument("--top", type=float, default=0.16, help="fit=width 時照片的垂直位置 0–1")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
 
@@ -225,7 +302,7 @@ def main() -> int:
 
     W = int(1200 * a.scale)
     H = int(W * 4 / 3)                                   # 3:4 直式，與短劇海報比例相近
-    img = build(W, H, a.photo)
+    img = build(W, H, a.photo, a.fx, a.fy, a.zoom, a.warm, a.fit, a.top)
 
     outdir = Path(__file__).resolve().parent.parent / "assets"
     outdir.mkdir(exist_ok=True)
